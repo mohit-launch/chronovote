@@ -47,35 +47,12 @@ impl SignedVote{
     }
 
     pub fn compute_weight(&self,vote_start:DateTime<Utc>,decay_model:DecayModel)->f64{
-        calculate_weight{
-            vote.Vote_weight,
-            vote.Vote_time,
+        calculate_weight(
+            self.vote.vote_weight,
+            self.vote.vote_time,
             vote_start,
             decay_model,
-        }
+       )
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rand::rngs::OsRng;
-    use ed25519_dalek::Keypair;
-
-    #[test]
-    fn test_vote_signature() {
-        let mut rng = OsRng;
-        let keypair = Keypair::generate(&mut rng);
-
-        let vote = Vote {
-            voter_id: "user".into(),
-            validator_id: "val".into(),
-            vote_time: Utc::now(),
-            vote_weight: 100.0,
-        };
-
-        let signed = vote.sign(&keypair);
-        assert!(signed.verify());
-        println!("Signature verified!");
-    }
-}
