@@ -20,9 +20,9 @@ pub fn threshold_at(
     start_time: DateTime<Utc>,
     now:DateTime<Utc>,
     model:&ThresholdModel,
-    overrideMode:Option<ThresholdEmergency>,
+    override_mode:Option<ThresholdEmergency>,
 )-> f64 {
-    if let Some(ThresholdEmergency::Emergency(value))=overrideMode{
+    if let Some(ThresholdEmergency::Emergency(value))=override_mode{
         return value.max(MIN_THRESHOLD).min(MAX_THRESHOLD)
     }
     let elapsed_minutes=(now-start_time).num_minutes().max(0) as f64;
