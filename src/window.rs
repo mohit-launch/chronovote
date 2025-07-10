@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use std::collections::HashMap;
 #[derive(Debug,Clone)]
 pub enum VotingWindow{
     Short, //5 min
@@ -53,3 +54,38 @@ impl VotingSession{
     }
 }
 
+pub struct ProposalManager{
+    pub proposals:HashMap<String,VotingSession>,
+    pub grace_period:Duration,
+}
+
+impl ProposalManager{
+    pub fn new(grace_period_secs:i64)->Self{
+        Self{
+            proposals:HashMap::new(),
+            grace_period:Duration::seconds(grace_period_secs),
+        }
+    }
+
+    pub fn add_proposal(&mut self, proposal_id: String, voter_id: String, voting_window: VotingWindow) {
+        let session=VotingSession{
+            vote_start: Utc::now(),
+            voter_id: voter_id.to_string(),
+            voting_window,
+            extended: false,
+        };
+        self.proposals.insert(proposal_id.to_string(),session);
+    }
+
+    pub fn list_actives(&self,now:DateTime<Utc>)->Vec<(&String,&VotingSession)>{
+        self.proposals
+        .iter()
+        .filter(|(_,session)| !session.has_expired(now+self.grace_period))
+        .collect()
+    }
+
+    pub fn cleanup_expired(&mut self,now:DateTime<Utc>){
+        self.proposals
+        .retain(|_,session| !session.has_expired(now+self.grace_period));
+    }
+}
