@@ -1,5 +1,6 @@
 use chrono::{DateTime,Utc};
 
+#[derive(Debug,Clone)]
 pub enum DecayModel{
     Linear(f64),       //1% per minute
     Exponential(f64), //0.1% per second
