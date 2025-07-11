@@ -59,8 +59,9 @@ impl SignedVote{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::SigningKey;
+    use ed25519_dalek::{SigningKey,VerifyingKey};
     use chrono::Utc;
+    use rand::rngs::OsRng;
 
     #[test]
     fn test_vote_serialization() {
@@ -77,7 +78,8 @@ mod tests {
 
     #[test]
     fn test_vote_signing_and_verification() {
-        let signing_key = SigningKey::generate(&mut OsRng);
+        let mut csprng = OsRng; 
+        let signing_key: SigningKey = SigningKey::generate(&mut csprng); 
         let vote = Vote {
             voter_id: "Bob".into(),
             validator_id: "Validator2".into(),
