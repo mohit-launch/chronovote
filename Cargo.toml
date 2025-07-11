@@ -7,11 +7,12 @@ edition = "2024"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ed25519-dalek = "2.1.0"
+ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
 base64 = "0.22"
 rust_decimal = "1.33"
 log = "0.4"
 env_logger = "0.11.8"
-rand = "0.9.1"
+rand = "0.8.5"
 rust_decimal_macros = "1.37.1"
 num-traits = "0.2"
+sha2="0.10.8"
