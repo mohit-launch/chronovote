@@ -89,3 +89,97 @@ impl ProposalManager{
         .retain(|_,session| !session.has_expired(now+self.grace_period));
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Utc, Duration};
+
+    #[test]
+    fn test_voting_window_durations() {
+        assert_eq!(VotingWindow::Short.duration(), Duration::minutes(5));
+        assert_eq!(VotingWindow::Medium.duration(), Duration::minutes(30));
+        assert_eq!(VotingWindow::Long.duration(), Duration::hours(2));
+        assert_eq!(
+            VotingWindow::Custom(Duration::seconds(45)).duration(),
+            Duration::seconds(45)
+        );
+    }
+
+    #[test]
+    fn test_session_end_time_and_expiration() {
+        let start_time = Utc::now();
+        let session = VotingSession {
+            vote_start: start_time,
+            voter_id: "voter1".to_string(),
+            voting_window: VotingWindow::Short,
+            extended: false,
+        };
+
+        let expected_end = start_time + Duration::minutes(5);
+        assert_eq!(session.end_time(), expected_end);
+
+        let now_before = start_time + Duration::minutes(3);
+        assert!(!session.has_expired(now_before));
+
+        let now_after = start_time + Duration::minutes(6);
+        assert!(session.has_expired(now_after));
+    }
+
+    #[test]
+    fn test_remaining_time_and_extension() {
+        let mut session = VotingSession {
+            vote_start: Utc::now(),
+            voter_id: "voter1".to_string(),
+            voting_window: VotingWindow::Short,
+            extended: false,
+        };
+
+        let now = session.vote_start + Duration::minutes(2);
+        let remaining = session.remaining_time(now);
+        assert_eq!(remaining, Duration::minutes(3));
+
+        session.extend_if_possible(Duration::minutes(5));
+        assert!(session.extended);
+
+        let new_end = session.vote_start + Duration::minutes(10); // 5 original + 5 extension
+        assert_eq!(session.end_time(), new_end);
+    }
+
+    #[test]
+    fn test_proposal_manager_add_and_list_active() {
+        let mut manager = ProposalManager::new(60); // 60 seconds grace
+        manager.add_proposal("p1".to_string(), "voterA".to_string(), VotingWindow::Short);
+
+        let now = Utc::now();
+        let actives = manager.list_actives(now);
+        assert_eq!(actives.len(), 1);
+        assert_eq!(actives[0].0, &"p1".to_string());
+    }
+
+    #[test]
+    fn test_proposal_cleanup_expired() {
+        let mut manager = ProposalManager::new(0); // No grace period
+
+        // Add an expired proposal manually
+        let past_time = Utc::now() - Duration::minutes(10);
+        let expired_session = VotingSession {
+            vote_start: past_time,
+            voter_id: "voterX".to_string(),
+            voting_window: VotingWindow::Short, // expired
+            extended: false,
+        };
+
+        manager.proposals.insert("expired".to_string(), expired_session);
+
+        // Add a still-active proposal
+        manager.add_proposal("active".to_string(), "voterY".to_string(), VotingWindow::Long);
+
+        manager.cleanup_expired(Utc::now());
+
+        assert_eq!(manager.proposals.len(), 1);
+        assert!(manager.proposals.contains_key("active"));
+        assert!(!manager.proposals.contains_key("expired"));
+    }
+}

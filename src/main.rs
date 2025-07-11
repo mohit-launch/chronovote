@@ -1,9 +1,9 @@
-mod decay;
 mod threshold;
 mod threshold_prog;
 mod voter;
 mod weight;
 mod window;
+mod decay;
 mod blockchain;
 
 use std::thread::sleep;
@@ -165,5 +165,49 @@ fn main() {
         println!("✅ Blockchain integrity: VALID");
     } else {
         println!("🚨 Blockchain integrity: INVALID");
+    }
+}
+
+
+#[cfg(test)]
+mod simulation_tests {
+    use super::*;
+    use chrono::Utc;
+    use rust_decimal_macros::dec;
+    use ed25519_dalek::SigningKey;
+    use rand::rngs::OsRng;
+
+    #[test]
+    fn test_vote_signing_and_verification() {
+        let vote = Vote {
+            voter_id: "TestVoter".to_string(),
+            validator_id: "TestValidator".to_string(),
+            vote_time: Utc::now(),
+            vote_weight: 1.0,
+        };
+
+        let mut csprng = OsRng;
+        let signing_key = SigningKey::generate(&mut csprng);
+        let signed_vote = vote.sign(&signing_key);
+
+        assert!(signed_vote.verify());
+    }
+
+    #[test]
+    fn test_weight_calculation_with_bonus() {
+        let vote_start = Utc::now();
+        let now = vote_start;
+        let mut engine = WeightEngine::new();
+
+        let vote = WeightedVote {
+            voter_id: "Alice".to_string(),
+            vote_time: now,
+            orig_weight: dec!(1.0),
+            decay_model: DecayModel::Exponential(0.001),
+            reputation_bonus: dec!(0.2),
+        };
+
+        let weight = engine.calculate_and_cache(&vote, &vote_start, now);
+        assert!(weight > dec!(1.0)); // due to reputation bonus
     }
 }

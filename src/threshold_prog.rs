@@ -96,3 +96,128 @@ pub fn recommend_profile(history:&[ProposalHistory])->ProgressionProfile{
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn test_threshold_requirement_met() {
+        let req = ThresholdRequirement {
+            min_percentage: 0.6,
+            max_abs: 10,
+        };
+
+        assert!(req.is_met(12, 20)); // 60% and >= 10
+        assert!(!req.is_met(5, 20)); // <10 yes_votes
+        assert!(!req.is_met(12, 30)); // 40% < 60%
+        assert!(!req.is_met(0, 0)); // total vote is zero
+    }
+
+    #[test]
+    fn test_threshold_at_conservative() {
+        let threshold = threshold_at(&ProgressionProfile::Conservative, 600, 0.5);
+        // Should increase slowly: 0.51 + (600/300 * 0.01) = 0.53
+        assert!((threshold - 0.53).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_threshold_at_aggressive() {
+        let threshold = threshold_at(&ProgressionProfile::Aggresive, 120, 0.5);
+        // 0.51 + 0.02 * (120 / 60) = 0.55
+        assert!((threshold - 0.55).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_threshold_at_adaptive_low_participation() {
+        let threshold = threshold_at(&ProgressionProfile::Adaptive, 100, 0.2);
+        assert_eq!(threshold, 0.70);
+    }
+
+    #[test]
+    fn test_threshold_at_adaptive_high_participation() {
+        let threshold = threshold_at(&ProgressionProfile::Adaptive, 240, 0.5);
+        // 0.55 + (240/120 * 0.01) = 0.57
+        assert!((threshold - 0.57).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_scheduled_base_threshold() {
+        assert_eq!(scheduled_base_threshold(3), 0.70); // Night
+        assert_eq!(scheduled_base_threshold(12), 0.55); // Day
+        assert_eq!(scheduled_base_threshold(20), 0.60); // Evening
+    }
+
+    #[test]
+    fn test_requirement_for_type() {
+        let normal = requirement_for_type(Proposaltype::Normal);
+        assert_eq!(normal.min_percentage, 0.51);
+        assert_eq!(normal.max_abs, 5);
+
+        let critical = requirement_for_type(Proposaltype::Critical);
+        assert_eq!(critical.min_percentage, 0.80);
+        assert_eq!(critical.max_abs, 15);
+
+        let emergency = requirement_for_type(Proposaltype::Emergency);
+        assert_eq!(emergency.min_percentage, 0.90);
+        assert_eq!(emergency.max_abs, 0);
+    }
+
+    #[test]
+    fn test_recommend_profile_empty() {
+        let history = vec![];
+        let profile = recommend_profile(&history);
+        match profile {
+            ProgressionProfile::Conservative => (),
+            _ => panic!("Expected Conservative for empty history"),
+        }
+    }
+
+    #[test]
+    fn test_recommend_profile_aggressive() {
+        let history = vec![
+            ProposalHistory {
+                vote_time: Utc::now(),
+                total_vote: 2,
+                yes_votes: 1,
+                threshold_passed: false,
+            },
+            ProposalHistory {
+                vote_time: Utc::now(),
+                total_vote: 3,
+                yes_votes: 2,
+                threshold_passed: true,
+            },
+        ];
+
+        let profile = recommend_profile(&history);
+        match profile {
+            ProgressionProfile::Aggresive => (),
+            _ => panic!("Expected Aggresive due to low average participation"),
+        }
+    }
+
+    #[test]
+    fn test_recommend_profile_conservative() {
+        let history = vec![
+            ProposalHistory {
+                vote_time: Utc::now(),
+                total_vote: 10,
+                yes_votes: 8,
+                threshold_passed: true,
+            },
+            ProposalHistory {
+                vote_time: Utc::now(),
+                total_vote: 12,
+                yes_votes: 10,
+                threshold_passed: true,
+            },
+        ];
+
+        let profile = recommend_profile(&history);
+        match profile {
+            ProgressionProfile::Conservative => (),
+            _ => panic!("Expected Conservative due to high average participation"),
+        }
+    }
+}
