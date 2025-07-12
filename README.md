@@ -127,5 +127,5 @@ This project is licensed under the [MIT License](LICENSE).
 ## 👥 Author
 
 * [Mohit Kumar Satpathy](https://github.com/Mohit-launch)
-- blockchain
+- Blockchain
 - Rust
